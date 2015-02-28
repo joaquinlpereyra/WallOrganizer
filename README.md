@@ -4,5 +4,5 @@ A little script to organize wallpapers (or any image, for that matters) into 5 f
 #Usage
 Simply make the script executable and run it like this:
 
-./WallOrganizer.sh <folder to organize>
+./WallOrganizer (folder to organize)
 

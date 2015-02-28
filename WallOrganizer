@@ -61,18 +61,6 @@ function deleteEmptyDir() {
                 fi
         done
 
-function deleteEmptyDir() {
-        #deletes empty folders created by program, if any
-        for dir in "$1"{16x10,16x9,5x4,4x3,Others}; do
-                if [ "$(ls -A $dir)" ]; then
-                        #if directory NOT empty, does nothing
-                        true
-                else
-                        echo "I'm deleting $dir directory, it was empty anyway."
-                        rm -r $dir
-                fi
-        done
-
 }
 
 ImgMover $1

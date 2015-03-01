@@ -1,67 +1,88 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #This program will organize the images in the destination folder in 4 subdirectories according to their aspect ratio: 16x10, 16x9, 4x3, 5x4 and 'Others'
 
-mkdir -p 16x10 16x9 5x4 4x3 Others #simply create all folder necesary
+function MAIN {
+	# checks if dependecy is satisfied and if working directory is set
+	hash identify 2>/dev/null
+	if [[ ! "$?" -eq 0 ]]; then
+		# checks if identify is installed
+		# a better version of this would be the next one liner, but for some reason it is not working
+		#hash identify 2>/dev/null || echo "I need \"identify\" package to work. It is generally found in the Imagemagick program. See your distribution instructions on how to install Imagemagick."
+		echo "I need \"identify\" package to work. It is generally found in the Imagemagick program. See your distribution instructions on how to install Imagemagick."
+		exit 1
+	fi
+	if [[ ! -d "$1" ]]; then
+		#checks if argument is directory
+		echo "ERROR: Argument needs to be a directory. See README.";  exit 1
+	fi
+	if [[ "$1" = */ ]]; then
+		# checks if directory passed ends with '/', in that case deletes it for nicer output and potentially less bugs
+		set ${1::-1}
+	fi
 
-function AspectRatioDetector() {
-        #Detects if an $FILE is of certain aspect ratio (16x9, 16x10, so on).
-        #Usage: Aspect Ration 16 9. 0 IF $FILE IS 16x9. 1 IF NOT.
-        #Depends on ImageMagkick program "identify"
-        width=$(identify -format %w\\n "$file" -quiet)
-        height=$(identify -format %h\\n "$file" -quiet)
-        should_be_height=$(((width / $1) * $2))
-        if [ "$should_be_height" -eq "$height" ]; then
-                return 0
-        else
-                return 1
-        fi
+	mkdir -p $1/{'16x9','16x10','5x4','4x3','Others'}
+	ImgMover "$1"
+	deleteEmptyDir "$1"
 }
 
-function ImgMover() {
-        #moves images to respective folders according to their aspect ratio
-        #depends on AspectRatioDetector()
-        #currently is hardcoded for 16x9, 16x10, 5x4 and 4x3, but this should be easily expandable. Add new aspect ratio at the end of both arrays, increase while "tolerance" by one.
-        widths=( 16 16 5 4 )
-        heights=( 9 10 4 3 )
-        for file in "$1"*.{jpg,jpeg,gif,bmp,png}; do
-                if [ -f "$file" ]; then
-                        counter=0
-                        while [ "$counter" -lt 4 ]; do
-                                AspectRatioDetector ${widths[$counter]} ${heights[$counter]}
-                                if [ "$?" -eq 0 ]; then 
-                                        #aspect ratio output 0 if the ratio in the arrays matched the image
-                                        echo "This file is ${widths[$counter]}x${heights[$counter]}."
-                                        mv -v "$file" "./${widths[$counter]}x${heights[$counter]}"
-                                        counter=0
-                                        break 
-                                else
-                                        #if not, try next ratio
-                                        counter=$((++counter))
-                                fi
-                        done
-                        if [ "$counter" -eq 4 ]; then
-                                #if you the counter to 4, it means image didn't match any of the hardcoded aspect ratios.
-                                echo "This file doesn't have a standar aspect ratio. Move to Others folder."
-                                mv -v "$file" ./Others
-                                counter=0
-                        fi
-                fi
-        done
+function AspectRatioDetector {
+	# Detects if an $FILE is of certain aspect ratio (16x9, 16x10, so on).
+	# Usage: Aspect Ration 16 9. 0 IF $FILE IS 16x9. 1 IF NOT.
+	# Depends on ImageMagkick program "identify"
+	width=$(identify -format %w\\n "$file" -quiet)
+	height=$(identify -format %h\\n "$file" -quiet)
+	should_be_height=$(((width/ $1 )* $2))
+	if [ "$should_be_height" -eq "$height" ]; then
+		return 0
+	else
+		return 1
+	fi
 }
 
-function deleteEmptyDir() {
-        #deletes empty folders created by program, if any
-        for dir in "$1"{16x10,16x9,5x4,4x3,Others}; do
-                if [ "$(ls -A $dir)" ]; then
-                        #if directory NOT empty, does nothing
-                        true
-                else
-                        echo "I'm deleting $dir directory, it was empty anyway."
-                        rm -r $dir
-                fi
-        done
+function ImgMover {
+	# moves images to respective folders according to their aspect ratio
+	# depends on AspectRatioDetector()
+	# currently is hardcoded for 16x9, 16x10, 5x4 and 4x3, but this should be easily expandable. Add new aspect ratio at the end of both arrays, increase while "tolerance" by one.
+	widths=( 16 16 5 4 )
+	heights=( 9 10 4 3 )
+	for file in "$1"/*.{jpg,jpeg,gif,bmp,png}; do
+		if [ -f "$file" ]; then
+			counter=0
+			while [ "$counter" -lt 4 ]; do
+				AspectRatioDetector "${widths[$counter]}" "${heights[$counter]}"
+				if [ "$?" -eq 0 ]; then 
+					# aspect ratio output 0 if the ratio in the arrays matched the image
+					echo "This file is ${widths[$counter]}x${heights[$counter]}."
+					mv -v "$file" "$1/${widths[$counter]}x${heights[$counter]}"
+					counter=0
+					break 
+				else
+					#if not, try next ratio
+					counter=$((++counter))
+				fi
+			done
+			if [ "$counter" -eq 4 ]; then
+				# if you get the counter to 4, it means image didn't match any of the hardcoded aspect ratios.
+				echo "This file doesn't have a standar aspect ratio. Move to Others folder."
+				mv -v "$file" "$1/Others"
+				counter=0
+			fi
+		fi
+	done
+}
+
+function deleteEmptyDir {
+	# deletes empty folders created by program, if any
+	for dir in "$1"/{16x10,16x9,5x4,4x3,Others}; do
+		if [ "$(ls -A $dir)" ]; then
+			# if directory NOT empty, does nothing
+			true
+		else
+			echo "I'm deleting $dir directory, it was empty anyway."
+			rmdir "$dir"
+		fi
+	done
 
 }
 
-ImgMover $1
-deleteEmptyDir $1
+MAIN "$1"
